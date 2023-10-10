@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 
+	"github.com/crosstyan/dumb_downloader/description"
 	"github.com/crosstyan/dumb_downloader/log"
 	"github.com/kr/pretty"
 	"github.com/spf13/cobra"
@@ -26,13 +27,13 @@ var root = cobra.Command{
 			log.Sugar().Errorf("failed to read config file %s", target)
 			return
 		}
-		var c map[string]any
-		err = json.Unmarshal(content, &c)
+		d := description.Description{}
+		err = json.Unmarshal(content, &d)
 		if err != nil {
 			log.Sugar().Errorf("failed to parse config file %s", target)
 			return
 		}
-		log.Sugar().Infof("config file content: %s", pretty.Sprint(c))
+		log.Sugar().Infof("config file content: %s", pretty.Sprint(d))
 	},
 }
 
