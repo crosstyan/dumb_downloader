@@ -1,9 +1,6 @@
 package main
 
-import (
-	"fmt"
-	"os"
-)
+import "github.com/crosstyan/dumb_downloader/cmd"
 
 // https://sxyz.blog/bypass-cloudflare-shield/
 // https://developers.cloudflare.com/bots/concepts/ja3-fingerprint/
@@ -12,6 +9,5 @@ import (
 // https://github.com/yolossn/JA3-Fingerprint-Introduction
 // https://blog.csdn.net/chenzhuyu/article/details/132217262
 func main() {
-	fmt.Println("Hello World")
-	os.Exit(0)
+	cmd.Execute()
 }
