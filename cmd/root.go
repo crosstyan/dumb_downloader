@@ -98,21 +98,41 @@ var root = cobra.Command{
 			client = client.SetProxy(proxy)
 		}
 
+		referer, ok := maybe_referer.Get()
+		if ok {
+			log.Sugar().Infof("using %s as referer", referer)
+		} else {
+			log.Sugar().Warnf("no referer set")
+		}
+
 		for _, v := range d.Images {
 			if err != nil {
 				log.Sugar().Errorf("failed to create request for %s", v.String())
 				return
+			}
+			p := path.Base(v.Path)
+			out := path.Join(outDir, p)
+			stat, err := os.Stat(out)
+			if !os.IsNotExist(err) {
+				if stat.IsDir() {
+					log.Sugar().Errorf("output file %s is a directory. skip.", out)
+					continue
+				}
+				log.Sugar().Infof("output file %s already exists. skip.", out)
+				continue
 			}
 			// convert to array of pointers...
 			cookies := utils.Map(c, func(c http.Cookie) *http.Cookie { return &c })
 			r := client.R().SetCookies(cookies...)
 			referer, ok := maybe_referer.Get()
 			if ok {
-				log.Sugar().Debugf("using referer %s", referer)
-				r.Headers.Add("Referer", referer)
+				r.SetHeader("Referer", referer)
 			} else {
 				log.Sugar().Warnf("no referer found")
 			}
+			r.SetHeader("Sec-Fetch-Dest", "image")
+			r.SetHeader("Sec-Fetch-Mode", "no-cors")
+			r.SetHeader("Sec-Fetch-Site", "same-site")
 			res, err := r.Get(v.String())
 			printHeadersCookies := func() {
 				log.Sugar().Debugf("request headers: %s", pretty.Sprint(res.Request.Headers))
@@ -122,21 +142,19 @@ var root = cobra.Command{
 				}
 			}
 			if err != nil {
-				log.Sugar().Errorf("failed to download %s", v.String())
+				log.Sugar().Errorf("failed to download %s: %s", v.String(), err)
 				printHeadersCookies()
-				return
-				// continue
+				// return
+				continue
 			}
 			if res.Header.Get("Content-Type") != "image/jpeg" {
 				log.Sugar().Errorf("not a jpeg image: %s", v.String())
 				log.Sugar().Errorf("response: %s", res.String())
 				printHeadersCookies()
-				return
-				// continue
+				// return
+				continue
 			}
 			log.Sugar().Infof("downloaded %s", v.String())
-			p := path.Base(v.Path)
-			out := path.Join(outDir, p)
 			err = os.WriteFile(out, res.Bytes(), 0644)
 			if err != nil {
 				log.Sugar().Errorf("failed to write file %s", out)
