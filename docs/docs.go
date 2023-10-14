@@ -49,6 +49,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/entity.ErrorResponse"
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/entity.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -64,6 +70,12 @@ const docTemplate = `{
                 ],
                 "summary": "Sync Download",
                 "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "If the response is transparent. See also strconv.ParseBool",
+                        "name": "transparent",
+                        "in": "query"
+                    },
                     {
                         "description": "download request",
                         "name": "request",
@@ -83,6 +95,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/entity.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/entity.ErrorResponse"
                         }
@@ -124,7 +142,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "body": {
-                    "description": "if it's binary, it's base64 encoded. Otherwise,\nif it's text, it's utf-8 encoded",
+                    "description": "if it's binary, it's base64 encoded. Otherwise,\nit's text",
                     "type": "string",
                     "example": "\u003chtml\u003e...\u003c/html\u003e"
                 },
@@ -133,6 +151,10 @@ const docTemplate = `{
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "mime_type": {
+                    "type": "string",
+                    "example": "text/html"
                 },
                 "status_code": {
                     "type": "integer",

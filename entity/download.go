@@ -1,8 +1,10 @@
 package entity
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"strings"
 )
 
 type DownloadRequest struct {
@@ -23,9 +25,34 @@ type DownloadResponse struct {
 	Url        string            `json:"url" example:"https://example.com/"`
 	StatusCode int               `json:"status_code" example:"200"`
 	Headers    map[string]string `json:"headers"`
+	MIMEType   string            `json:"mime_type" example:"text/html"`
 	// if it's binary, it's base64 encoded. Otherwise,
-	// if it's text, it's utf-8 encoded
-	Body string `json:"body" example:"<html>...</html>"`
+	// it's text
+	Body []byte `json:"body,omitempty" example:"<html>...</html>" swaggertype:"string"`
+}
+
+func (r *DownloadResponse) MarshalJSON() ([]byte, error) {
+	type Alias DownloadResponse
+	aux := &struct {
+		Body *string `json:"body,omitempty"`
+		*Alias
+	}{
+		Alias: (*Alias)(r),
+	}
+	if r.Body == nil {
+		return json.Marshal(aux)
+	}
+	if len(r.Body) == 0 {
+		return json.Marshal(aux)
+	}
+	if strings.Contains(r.MIMEType, "text") {
+		s := string(r.Body)
+		aux.Body = &s
+	} else {
+		s := base64.StdEncoding.EncodeToString(r.Body)
+		aux.Body = &s
+	}
+	return json.Marshal(aux)
 }
 
 type ErrorResponse struct {

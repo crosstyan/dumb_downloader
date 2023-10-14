@@ -30,13 +30,16 @@ definitions:
       body:
         description: |-
           if it's binary, it's base64 encoded. Otherwise,
-          if it's text, it's utf-8 encoded
+          it's text
         example: <html>...</html>
         type: string
       headers:
         additionalProperties:
           type: string
         type: object
+      mime_type:
+        example: text/html
+        type: string
       status_code:
         example: 200
         type: integer
@@ -79,6 +82,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/entity.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/entity.ErrorResponse'
       summary: Async Download
   /download/sync:
     post:
@@ -86,6 +93,10 @@ paths:
       - application/json
       description: Push a download request to the queue and wait for the response
       parameters:
+      - description: If the response is transparent. See also strconv.ParseBool
+        in: query
+        name: transparent
+        type: boolean
       - description: download request
         in: body
         name: request
@@ -101,6 +112,10 @@ paths:
             $ref: '#/definitions/entity.DownloadResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/entity.ErrorResponse'
+        "500":
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/entity.ErrorResponse'
       summary: Sync Download

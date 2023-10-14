@@ -7,10 +7,11 @@ import (
 	"github.com/crosstyan/dumb_downloader/entity"
 	"github.com/crosstyan/dumb_downloader/global/log"
 	"net/http"
+	"strconv"
 	"time"
 )
 
-func GetDownloadRequest(req *http.Request) (*entity.DownloadRequest, error) {
+func getDownloadRequest(req *http.Request) (*entity.DownloadRequest, error) {
 	dlReq := entity.DownloadRequest{}
 	buf := make([]byte, 1024)
 	_, err := req.Body.Read(buf)
@@ -44,6 +45,7 @@ func writeError(resp http.ResponseWriter, err error, code int) {
 // @Param request body entity.DownloadRequest true "download request"
 // @Success 202
 // @Failure 400 {object} entity.ErrorResponse
+// @Failure 500 {object} entity.ErrorResponse
 // @Router /download [post]
 func MakeAsyncPushHandler(
 	reqChan chan<- entity.ReqResp,
@@ -52,7 +54,7 @@ func MakeAsyncPushHandler(
 	pushQueue := func(resp http.ResponseWriter, req *http.Request) {
 		var ctx, cancel = context.WithTimeout(req.Context(), timeout)
 		defer cancel()
-		dlReq, err := GetDownloadRequest(req)
+		dlReq, err := getDownloadRequest(req)
 		if err != nil {
 			writeError(resp, err, http.StatusBadRequest)
 			return
@@ -80,41 +82,70 @@ func MakeAsyncPushHandler(
 // @Tag download
 // @Accept json
 // @Produce json
+// @Param transparent query bool false "If the response is transparent. See also strconv.ParseBool"
 // @Param request body entity.DownloadRequest true "download request"
 // @Success 200 {object} entity.DownloadResponse
 // @Failure 400 {object} entity.ErrorResponse
+// @Failure 500 {object} entity.ErrorResponse
 // @Router /download/sync [post]
 func MakeSyncPushHandler(
 	reqChan chan<- entity.ReqResp,
 ) http.HandlerFunc {
 	pushQueue := func(resp http.ResponseWriter, req *http.Request) {
 		var ctx = req.Context()
-		dlReq, err := GetDownloadRequest(req)
+		query := req.URL.Query()
+		isTransparent := func() bool {
+			t := query.Get("transparent")
+			b, err := strconv.ParseBool(t)
+			if err == nil {
+				return false
+			}
+			return b
+		}()
+		dlReq, err := getDownloadRequest(req)
 		if err != nil {
 			writeError(resp, err, http.StatusBadRequest)
 			return
 		}
 		respChan := make(chan entity.Resp)
-		oneWay := (<-chan entity.Resp)(respChan)
+		oneWay := (chan<- entity.Resp)(respChan)
 		select {
 		case reqChan <- entity.ReqResp{Request: dlReq, ResponseChannel: &oneWay, Context: ctx, IsSync: true}:
 		case response := <-respChan:
 			{
-				err, r := response.Unpack()
+				r, err := response.Get()
 				if err != nil {
 					writeError(resp, err, http.StatusInternalServerError)
 					return
 				}
-				b, err := json.Marshal(r)
-				if err != nil {
-					writeError(resp, err, http.StatusInternalServerError)
+				if r == nil {
+					writeError(resp, errors.New("nil response"), http.StatusInternalServerError)
 					return
 				}
-				resp.WriteHeader(http.StatusOK)
-				_, err = resp.Write(b)
-				if err != nil {
-					log.Sugar().Errorw("failed to write response", "error", err)
-					resp.WriteHeader(http.StatusInternalServerError)
+				if !isTransparent {
+					b, err := json.Marshal(r)
+					if err != nil {
+						writeError(resp, err, http.StatusInternalServerError)
+						return
+					}
+					resp.WriteHeader(http.StatusOK)
+					_, err = resp.Write(b)
+					if err != nil {
+						log.Sugar().Errorw("failed to write response", "error", err)
+						resp.WriteHeader(http.StatusInternalServerError)
+						return
+					}
+				} else {
+					_, err = resp.Write(r.Body)
+					if err != nil {
+						log.Sugar().Errorw("failed to write response", "error", err)
+						resp.WriteHeader(http.StatusInternalServerError)
+						return
+					}
+					for k, v := range r.Headers {
+						resp.Header().Add(k, v)
+					}
+					resp.WriteHeader(r.StatusCode)
 					return
 				}
 				return
