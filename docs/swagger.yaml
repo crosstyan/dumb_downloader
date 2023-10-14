@@ -1,3 +1,55 @@
+definitions:
+  entity.DownloadRequest:
+    properties:
+      cookies:
+        description: |-
+          Array of cookies. See also entity.TempCookie.
+
+          https://chromedevtools.github.io/devtools-protocol/tot/Network/#type-Cookie
+        items:
+          type: object
+        type: array
+      headers:
+        additionalProperties:
+          type: string
+        description: recommended to remove "User-Agent" from headers
+        type: object
+      out_prefix:
+        description: |-
+          if it not exists it won't be saved.
+          if it's empty then it would be saved at root of output directory.
+          Otherwise, it would be saved at `output_dir/out_prefix`
+        example: example
+        type: string
+      url:
+        example: https://example.com/
+        type: string
+    type: object
+  entity.DownloadResponse:
+    properties:
+      body:
+        description: |-
+          if it's binary, it's base64 encoded. Otherwise,
+          if it's text, it's utf-8 encoded
+        example: <html>...</html>
+        type: string
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+      status_code:
+        example: 200
+        type: integer
+      url:
+        example: https://example.com/
+        type: string
+    type: object
+  entity.ErrorResponse:
+    properties:
+      error:
+        example: error message
+        type: string
+    type: object
 info:
   contact: {}
   license:
@@ -5,5 +57,51 @@ info:
     url: http://www.wtfpl.net/
   title: Dumb Downloader API
   version: "1.0"
-paths: {}
+paths:
+  /download:
+    post:
+      consumes:
+      - application/json
+      description: Push a download request to the queue
+      parameters:
+      - description: download request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/entity.DownloadRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/entity.ErrorResponse'
+      summary: Async Download
+  /download/sync:
+    post:
+      consumes:
+      - application/json
+      description: Push a download request to the queue and wait for the response
+      parameters:
+      - description: download request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/entity.DownloadRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/entity.DownloadResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/entity.ErrorResponse'
+      summary: Sync Download
 swagger: "2.0"

@@ -17,7 +17,7 @@ type ReqResp struct {
 	Request *entity.DownloadRequest
 	// if this channel exists then we use sync API
 	ResponseChannel *<-chan Resp
-	isSync          bool
+	IsSync          bool
 	context         context.Context
 }
 
@@ -25,10 +25,6 @@ type ReqResp struct {
 // it's only useful when the request is sync.
 func (rr *ReqResp) Context() context.Context {
 	return rr.context
-}
-
-func (rr *ReqResp) IsSync() bool {
-	return rr.isSync
 }
 
 func GetDownloadRequest(req *http.Request) (*entity.DownloadRequest, error) {
@@ -47,7 +43,7 @@ func GetDownloadRequest(req *http.Request) (*entity.DownloadRequest, error) {
 
 func writeError(resp http.ResponseWriter, err error, code int) {
 	resp.WriteHeader(code)
-	eR := entity.ErrorResponse{Error: err}
+	eR := entity.ErrorResponse{Error: err.Error()}
 	b, _ := json.Marshal(eR)
 	_, err = resp.Write(b)
 	if err != nil {
@@ -57,6 +53,15 @@ func writeError(resp http.ResponseWriter, err error, code int) {
 }
 
 // MakeAsyncPushHandler creates a handler that pushes the request to the channel.
+// @Summary Async Download
+// @Description Push a download request to the queue
+// @Tag download
+// @Accept json
+// @Produce json
+// @Param request body entity.DownloadRequest true "download request"
+// @Success 202
+// @Failure 400 {object} entity.ErrorResponse
+// @Router /download [post]
 func MakeAsyncPushHandler(
 	reqChan chan<- ReqResp,
 	timeout time.Duration,
@@ -75,7 +80,7 @@ func MakeAsyncPushHandler(
 			return
 		}
 		select {
-		case reqChan <- ReqResp{Request: dlReq, ResponseChannel: nil, context: ctx, isSync: false}:
+		case reqChan <- ReqResp{Request: dlReq, ResponseChannel: nil, context: ctx, IsSync: false}:
 			resp.WriteHeader(http.StatusAccepted)
 			return
 		case <-ctx.Done():
@@ -86,6 +91,16 @@ func MakeAsyncPushHandler(
 	return pushQueue
 }
 
+// MakeSyncPushHandler creates a sync handler that pushes the request to the channel.
+// @Summary Sync Download
+// @Description Push a download request to the queue and wait for the response
+// @Tag download
+// @Accept json
+// @Produce json
+// @Param request body entity.DownloadRequest true "download request"
+// @Success 200 {object} entity.DownloadResponse
+// @Failure 400 {object} entity.ErrorResponse
+// @Router /download/sync [post]
 func MakeSyncPushHandler(
 	reqChan chan<- ReqResp,
 ) http.HandlerFunc {
@@ -99,7 +114,7 @@ func MakeSyncPushHandler(
 		respChan := make(chan Resp)
 		oneWay := (<-chan Resp)(respChan)
 		select {
-		case reqChan <- ReqResp{Request: dlReq, ResponseChannel: &oneWay, context: ctx, isSync: true}:
+		case reqChan <- ReqResp{Request: dlReq, ResponseChannel: &oneWay, context: ctx, IsSync: true}:
 		case response := <-respChan:
 			{
 				err, r := response.Unpack()
@@ -116,6 +131,7 @@ func MakeSyncPushHandler(
 				_, err = resp.Write(b)
 				if err != nil {
 					log.Sugar().Errorw("failed to write response", "error", err)
+					resp.WriteHeader(http.StatusInternalServerError)
 					return
 				}
 				return

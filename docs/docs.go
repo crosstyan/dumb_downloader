@@ -18,7 +18,142 @@ const docTemplate = `{
     },
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
-    "paths": {}
+    "paths": {
+        "/download": {
+            "post": {
+                "description": "Push a download request to the queue",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Async Download",
+                "parameters": [
+                    {
+                        "description": "download request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/entity.DownloadRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/entity.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/download/sync": {
+            "post": {
+                "description": "Push a download request to the queue and wait for the response",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Sync Download",
+                "parameters": [
+                    {
+                        "description": "download request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/entity.DownloadRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/entity.DownloadResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/entity.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "entity.DownloadRequest": {
+            "type": "object",
+            "properties": {
+                "cookies": {
+                    "description": "Array of cookies. See also entity.TempCookie.\n\nhttps://chromedevtools.github.io/devtools-protocol/tot/Network/#type-Cookie",
+                    "type": "array",
+                    "items": {
+                        "type": "object"
+                    }
+                },
+                "headers": {
+                    "description": "recommended to remove \"User-Agent\" from headers",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "out_prefix": {
+                    "description": "if it not exists it won't be saved.\nif it's empty then it would be saved at root of output directory.\nOtherwise, it would be saved at ` + "`" + `output_dir/out_prefix` + "`" + `",
+                    "type": "string",
+                    "example": "example"
+                },
+                "url": {
+                    "type": "string",
+                    "example": "https://example.com/"
+                }
+            }
+        },
+        "entity.DownloadResponse": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "description": "if it's binary, it's base64 encoded. Otherwise,\nif it's text, it's utf-8 encoded",
+                    "type": "string",
+                    "example": "\u003chtml\u003e...\u003c/html\u003e"
+                },
+                "headers": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "status_code": {
+                    "type": "integer",
+                    "example": 200
+                },
+                "url": {
+                    "type": "string",
+                    "example": "https://example.com/"
+                }
+            }
+        },
+        "entity.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "example": "error message"
+                }
+            }
+        }
+    }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it

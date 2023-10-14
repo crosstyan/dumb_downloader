@@ -32,12 +32,12 @@ func serveRun(cmd *cobra.Command, args []string) {
 		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,
 	})
-	swaggerM := httpSwagger.Handler(
+	swaggerH := httpSwagger.Handler(
 		// The url pointing to API definition
 		httpSwagger.URL("/swagger/doc.json"),
 	)
 	r.Use(chiZapM, corsM)
-	r.Get("/swagger/*", swaggerM)
+	r.Get("/swagger/*", swaggerH)
 	err = http.ListenAndServe(listenAddr, r)
 	if err != nil {
 		log.Sugar().Panicw("listen", "err", err)

@@ -6,35 +6,30 @@ import (
 )
 
 type DownloadRequest struct {
-	Url     string        `json:"url"`
-	Cookies []http.Cookie `json:"cookies"`
+	Url string `json:"url" example:"https://example.com/"`
+	// Array of cookies. See also entity.TempCookie.
+	//
+	// https://chromedevtools.github.io/devtools-protocol/tot/Network/#type-Cookie
+	Cookies []http.Cookie `json:"cookies" swaggertype:"array,object"`
 	// recommended to remove "User-Agent" from headers
 	Headers map[string]string `json:"headers"`
-	// if it not exists it won't be saved
-	// if it's empty then it would be saved at root of output directory
-	// otherwise it would be saved at `output_dir/out_prefix`
-	OutPrefix *string `json:"out_prefix,omitempty"`
+	// if it not exists it won't be saved.
+	// if it's empty then it would be saved at root of output directory.
+	// Otherwise, it would be saved at `output_dir/out_prefix`
+	OutPrefix *string `json:"out_prefix,omitempty" example:"example"`
 }
 
 type DownloadResponse struct {
-	Url        string            `json:"url"`
-	StatusCode int               `json:"status_code"`
+	Url        string            `json:"url" example:"https://example.com/"`
+	StatusCode int               `json:"status_code" example:"200"`
 	Headers    map[string]string `json:"headers"`
-	// if it's binary, it's base64 encoded
+	// if it's binary, it's base64 encoded. Otherwise,
 	// if it's text, it's utf-8 encoded
-	Body string `json:"body"`
+	Body string `json:"body" example:"<html>...</html>"`
 }
 
 type ErrorResponse struct {
-	Error error `json:"error"`
-}
-
-func (e ErrorResponse) MarshalJSON() ([]byte, error) {
-	return json.Marshal(struct {
-		Error string `json:"error"`
-	}{
-		Error: e.Error.Error(),
-	})
+	Error string `json:"error" example:"error message"`
 }
 
 // UnmarshalJSON

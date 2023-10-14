@@ -6,7 +6,9 @@ import (
 )
 
 // TempCookie is a temporary cookie struct
-// deserialize from json
+// that is deserialized from json
+//
+// @Description temporary cookie struct. See also entity.DownloadRequest
 type TempCookie struct {
 	Name   string `json:"name"`
 	Value  string `json:"value"`
