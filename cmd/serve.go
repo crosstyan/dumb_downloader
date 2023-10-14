@@ -9,6 +9,9 @@ import (
 	"github.com/spf13/cobra"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 	"moul.io/chizap"
+
+	// swagger embed files
+	_ "github.com/crosstyan/dumb_downloader/docs"
 )
 
 // @title Dumb Downloader API

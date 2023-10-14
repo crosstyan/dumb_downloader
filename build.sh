@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-go build -o dumbdl
+python3 build.py
