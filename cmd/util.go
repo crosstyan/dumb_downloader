@@ -1,11 +1,11 @@
 package cmd
 
 import (
+	"github.com/crosstyan/dumb_downloader/global/log"
 	"net/http"
 	"net/url"
 	"os"
 
-	"github.com/crosstyan/dumb_downloader/log"
 	"github.com/joomcode/errorx"
 	"github.com/spf13/viper"
 )
@@ -50,4 +50,12 @@ func GetOutDirFromViper() (string, error) {
 		return "", errorx.IllegalArgument.New("output directory %s is not a directory", outDir)
 	}
 	return outDir, nil
+}
+
+func GetPoolSizeFromViper() (int, error) {
+	poolSize := viper.GetInt("pool_size")
+	if poolSize <= 0 {
+		return 0, errorx.IllegalArgument.New("pool size should be positive")
+	}
+	return poolSize, nil
 }

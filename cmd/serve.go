@@ -1,9 +1,9 @@
 package cmd
 
 import (
+	"github.com/crosstyan/dumb_downloader/global/log"
 	"net/http"
 
-	"github.com/crosstyan/dumb_downloader/log"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	"github.com/spf13/cobra"

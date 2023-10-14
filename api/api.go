@@ -5,10 +5,31 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/crosstyan/dumb_downloader/entity"
-	"github.com/crosstyan/dumb_downloader/log"
+	"github.com/crosstyan/dumb_downloader/global/log"
+	"github.com/samber/mo"
 	"net/http"
 	"time"
 )
+
+type Resp = mo.Either[error, *entity.DownloadResponse]
+
+type ReqResp struct {
+	Request *entity.DownloadRequest
+	// if this channel exists then we use sync API
+	ResponseChannel *<-chan Resp
+	isSync          bool
+	context         context.Context
+}
+
+// Context returns the context of the request.
+// it's only useful when the request is sync.
+func (rr *ReqResp) Context() context.Context {
+	return rr.context
+}
+
+func (rr *ReqResp) IsSync() bool {
+	return rr.isSync
+}
 
 func GetDownloadRequest(req *http.Request) (*entity.DownloadRequest, error) {
 	dlReq := entity.DownloadRequest{}
@@ -27,7 +48,7 @@ func GetDownloadRequest(req *http.Request) (*entity.DownloadRequest, error) {
 func writeError(resp http.ResponseWriter, err error, code int) {
 	resp.WriteHeader(code)
 	eR := entity.ErrorResponse{Error: err}
-	b, _ := eR.MarshalJSON()
+	b, _ := json.Marshal(eR)
 	_, err = resp.Write(b)
 	if err != nil {
 		log.Sugar().Errorw("failed to write response", "error", err)
@@ -37,7 +58,7 @@ func writeError(resp http.ResponseWriter, err error, code int) {
 
 // MakeAsyncPushHandler creates a handler that pushes the request to the channel.
 func MakeAsyncPushHandler(
-	reqChan chan<- *entity.DownloadRequest,
+	reqChan chan<- ReqResp,
 	timeout time.Duration,
 ) http.HandlerFunc {
 	pushQueue := func(resp http.ResponseWriter, req *http.Request) {
@@ -49,12 +70,12 @@ func MakeAsyncPushHandler(
 			return
 		}
 		// if save output is not set, it's meaningless to use async API
-		if !dlReq.IsSaveOutput {
+		if dlReq.OutPrefix == nil {
 			writeError(resp, errors.New("async API only accepts save output"), http.StatusBadRequest)
 			return
 		}
 		select {
-		case reqChan <- dlReq:
+		case reqChan <- ReqResp{Request: dlReq, ResponseChannel: nil, context: ctx, isSync: false}:
 			resp.WriteHeader(http.StatusAccepted)
 			return
 		case <-ctx.Done():
@@ -66,9 +87,43 @@ func MakeAsyncPushHandler(
 }
 
 func MakeSyncPushHandler(
-	reqChan chan<- *entity.DownloadRequest,
-	respChan <-chan *entity.DownloadResponse,
-	timeout time.Duration,
+	reqChan chan<- ReqResp,
 ) http.HandlerFunc {
-	return nil
+	pushQueue := func(resp http.ResponseWriter, req *http.Request) {
+		var ctx = req.Context()
+		dlReq, err := GetDownloadRequest(req)
+		if err != nil {
+			writeError(resp, err, http.StatusBadRequest)
+			return
+		}
+		respChan := make(chan Resp)
+		oneWay := (<-chan Resp)(respChan)
+		select {
+		case reqChan <- ReqResp{Request: dlReq, ResponseChannel: &oneWay, context: ctx, isSync: true}:
+		case response := <-respChan:
+			{
+				err, r := response.Unpack()
+				if err != nil {
+					writeError(resp, err, http.StatusInternalServerError)
+					return
+				}
+				b, err := json.Marshal(r)
+				if err != nil {
+					writeError(resp, err, http.StatusInternalServerError)
+					return
+				}
+				resp.WriteHeader(http.StatusOK)
+				_, err = resp.Write(b)
+				if err != nil {
+					log.Sugar().Errorw("failed to write response", "error", err)
+					return
+				}
+				return
+			}
+		case <-ctx.Done():
+			writeError(resp, errors.New("timeout"), http.StatusGatewayTimeout)
+			return
+		}
+	}
+	return pushQueue
 }

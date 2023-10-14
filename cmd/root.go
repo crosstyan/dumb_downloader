@@ -1,11 +1,20 @@
 package cmd
 
 import (
+	"github.com/crosstyan/dumb_downloader/global/log"
+	"github.com/spf13/pflag"
 	"os"
+	"strings"
 
-	"github.com/crosstyan/dumb_downloader/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+)
+
+const (
+	ListenFlagName    = "listen"
+	HttpProxyFlagName = "http_proxy"
+	PoolSizeFlagName  = "pool_size"
+	OutputDirFlagName = "output_dir"
 )
 
 var root = cobra.Command{
@@ -20,33 +29,44 @@ func Execute() error {
 	return root.Execute()
 }
 
+// https://github.com/spf13/viper/discussions/1054
+// https://github.com/spf13/cobra/blob/95d8a1e45d7719c56dc017e075d3e6099deba85d/command_test.go#L1645-L1652
 func init() {
+	cobra.OnInitialize(initConfig)
 	root.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file")
-	initConfig()
-
-	root.PersistentFlags().StringP("http-proxy", "P", "", "HTTP proxy")
-	err := viper.BindPFlag("http_proxy", root.PersistentFlags().Lookup("http-proxy"))
+	normFnNew := func(f *pflag.FlagSet, name string) pflag.NormalizedName {
+		return pflag.NormalizedName(strings.ReplaceAll(name, "_", "-"))
+	}
+	root.SetGlobalNormalizationFunc(normFnNew)
+	root.PersistentFlags().StringP(HttpProxyFlagName, "P", "", "HTTP proxy")
+	err := viper.BindPFlag(HttpProxyFlagName, root.PersistentFlags().Lookup(HttpProxyFlagName))
 	if err != nil {
-		log.Sugar().Panicw("failed to bind flag", "flag", "http-proxy", "error", err)
+		log.Sugar().Panicw("failed to bind flag", "flag", HttpProxyFlagName, "error", err)
 	}
 
 	viper.SetEnvPrefix("DUMB")
 	viper.AutomaticEnv()
-	err = viper.BindEnv("http_proxy", "http_proxy", "HTTP_PROXY", "https_proxy", "HTTPS_PROXY")
+	err = viper.BindEnv(HttpProxyFlagName, "http_proxy", "HTTP_PROXY", "https_proxy", "HTTPS_PROXY")
 	if err != nil {
-		log.Sugar().Panicw("failed to bind env", "env", "http_proxy", "error", err)
+		log.Sugar().Panicw("failed to bind env", "env", HttpProxyFlagName, "error", err)
 	}
 
-	from.PersistentFlags().StringP("output-dir", "o", "out", "output directory")
-	err = viper.BindPFlag("output_dir", root.PersistentFlags().Lookup("output-dir"))
+	root.PersistentFlags().IntP(PoolSizeFlagName, "p", 16, "pool size")
+	err = viper.BindPFlag(PoolSizeFlagName, root.PersistentFlags().Lookup(PoolSizeFlagName))
 	if err != nil {
-		log.Sugar().Panicw("failed to bind flag", "flag", "output-dir", "error", err)
+		log.Sugar().Panicw("failed to bind flag", "flag", PoolSizeFlagName, "error", err)
 	}
 
-	serve.PersistentFlags().StringP("listen", "l", "127.0.0.1:8888", "listen address")
-	err = viper.BindPFlag("listen", root.PersistentFlags().Lookup("listen"))
+	root.PersistentFlags().StringP(OutputDirFlagName, "o", "out", "output directory")
+	err = viper.BindPFlag(OutputDirFlagName, root.PersistentFlags().Lookup(OutputDirFlagName))
 	if err != nil {
-		log.Sugar().Panicw("failed to bind flag", "flag", "listen", "error", err)
+		log.Sugar().Panicw("failed to bind flag", "flag", OutputDirFlagName, "error", err)
+	}
+
+	serve.PersistentFlags().StringP(ListenFlagName, "l", "127.0.0.1:8888", "listen address")
+	err = viper.BindPFlag(ListenFlagName, serve.PersistentFlags().Lookup(ListenFlagName))
+	if err != nil {
+		log.Sugar().Panicw("failed to bind flag", "flag", ListenFlagName, "error", err)
 	}
 }
 

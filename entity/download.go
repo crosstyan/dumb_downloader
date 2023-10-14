@@ -9,9 +9,11 @@ type DownloadRequest struct {
 	Url     string        `json:"url"`
 	Cookies []http.Cookie `json:"cookies"`
 	// recommended to remove "User-Agent" from headers
-	Headers      map[string]string `json:"headers"`
-	IsSaveOutput bool              `json:"is_save_output"`
-	OutPrefix    string            `json:"out_prefix"`
+	Headers map[string]string `json:"headers"`
+	// if it not exists it won't be saved
+	// if it's empty then it would be saved at root of output directory
+	// otherwise it would be saved at `output_dir/out_prefix`
+	OutPrefix *string `json:"out_prefix,omitempty"`
 }
 
 type DownloadResponse struct {
@@ -20,14 +22,14 @@ type DownloadResponse struct {
 	Headers    map[string]string `json:"headers"`
 	// if it's binary, it's base64 encoded
 	// if it's text, it's utf-8 encoded
-	Body []byte `json:"body"`
+	Body string `json:"body"`
 }
 
 type ErrorResponse struct {
 	Error error `json:"error"`
 }
 
-func (e *ErrorResponse) MarshalJSON() ([]byte, error) {
+func (e ErrorResponse) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Error string `json:"error"`
 	}{
