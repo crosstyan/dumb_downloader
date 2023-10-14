@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -132,12 +133,16 @@ func MakeSyncPushHandler(
 				// https://pkg.go.dev/encoding/json#Marshal
 				// https://www.alexedwards.net/blog/json-surprises-and-gotchas
 				if !isTransparent {
-					b, err := json.Marshal(r)
+					resp.Header().Add("Content-Type", "application/json")
+					buf := bytes.NewBuffer([]byte{})
+					enc := json.NewEncoder(buf)
+					enc.SetEscapeHTML(false)
+					err = enc.Encode(r)
 					if err != nil {
 						writeError(resp, err, http.StatusInternalServerError)
 						return
 					}
-					_, err = resp.Write(b)
+					_, err = resp.Write(buf.Bytes())
 					resp.WriteHeader(http.StatusOK)
 					if err != nil {
 						log.Sugar().Errorw("failed to write response", "error", err)
