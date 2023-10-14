@@ -8,7 +8,7 @@ import (
 	"path"
 	"sort"
 
-	"github.com/crosstyan/dumb_downloader/description"
+	"github.com/crosstyan/dumb_downloader/entity"
 	"github.com/crosstyan/dumb_downloader/log"
 	"github.com/crosstyan/dumb_downloader/utils"
 	"github.com/imroc/req/v3"
@@ -19,7 +19,7 @@ import (
 
 type ProxyFunc = func(*http.Request) (*url.URL, error)
 
-func GetDescription(descriptionPath string) (*description.Description, error) {
+func GetDescription(descriptionPath string) (*entity.Description, error) {
 	if _, err := os.Stat(descriptionPath); os.IsNotExist(err) {
 		return nil, errorx.Decorate(err, "config file %s not found", descriptionPath)
 	}
@@ -27,7 +27,7 @@ func GetDescription(descriptionPath string) (*description.Description, error) {
 	if err != nil {
 		return nil, errorx.Decorate(err, "failed to read config file %s", descriptionPath)
 	}
-	d := description.Description{}
+	d := entity.Description{}
 	err = json.Unmarshal(content, &d)
 	if err != nil {
 		return nil, errorx.Decorate(err, "failed to parse config file %s", descriptionPath)
@@ -35,11 +35,11 @@ func GetDescription(descriptionPath string) (*description.Description, error) {
 	return &d, nil
 }
 
-func GetLatestRequest(description *description.Description) (*description.RequestRecord, error) {
+func GetLatestRequest(description *entity.Description) (*entity.RequestRecord, error) {
 	// https://github.com/panjf2000/ants
 	reqs := maps.Values(description.Requests)
 	if len(reqs) == 0 {
-		return nil, errorx.IllegalArgument.New("no requests found in description")
+		return nil, errorx.IllegalArgument.New("no requests found in entity")
 	}
 	sort.Slice(reqs, func(i, j int) bool {
 		return reqs[i].Timestamp.After(reqs[j].Timestamp)
@@ -52,7 +52,7 @@ func runDescription(cmd *cobra.Command, args []string) {
 	target := args[0]
 	d, err := GetDescription(target)
 	if err != nil {
-		log.Sugar().Panicw("failed to get description", "error", err)
+		log.Sugar().Panicw("failed to get entity", "error", err)
 	}
 	latest, err := GetLatestRequest(d)
 	if err != nil {
@@ -140,7 +140,7 @@ func runDescription(cmd *cobra.Command, args []string) {
 
 var from = cobra.Command{
 	Use:   "from",
-	Short: "download from a description file",
+	Short: "download from a entity file",
 	Args:  cobra.ExactArgs(1),
 	Run:   runDescription,
 }

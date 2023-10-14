@@ -22,19 +22,32 @@ func Execute() error {
 
 func init() {
 	root.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file")
+	initConfig()
 
 	root.PersistentFlags().StringP("http-proxy", "P", "", "HTTP proxy")
-	viper.BindPFlag("http_proxy", root.PersistentFlags().Lookup("http-proxy"))
+	err := viper.BindPFlag("http_proxy", root.PersistentFlags().Lookup("http-proxy"))
+	if err != nil {
+		log.Sugar().Panicw("failed to bind flag", "flag", "http-proxy", "error", err)
+	}
 
 	viper.SetEnvPrefix("DUMB")
 	viper.AutomaticEnv()
-	viper.BindEnv("http_proxy", "http_proxy", "HTTP_PROXY", "https_proxy", "HTTPS_PROXY")
+	err = viper.BindEnv("http_proxy", "http_proxy", "HTTP_PROXY", "https_proxy", "HTTPS_PROXY")
+	if err != nil {
+		log.Sugar().Panicw("failed to bind env", "env", "http_proxy", "error", err)
+	}
 
 	from.PersistentFlags().StringP("output-dir", "o", "out", "output directory")
-	viper.BindPFlag("output_dir", root.PersistentFlags().Lookup("output-dir"))
+	err = viper.BindPFlag("output_dir", root.PersistentFlags().Lookup("output-dir"))
+	if err != nil {
+		log.Sugar().Panicw("failed to bind flag", "flag", "output-dir", "error", err)
+	}
 
 	serve.PersistentFlags().StringP("listen", "l", "127.0.0.1:8888", "listen address")
-	viper.BindPFlag("listen", root.PersistentFlags().Lookup("listen"))
+	err = viper.BindPFlag("listen", root.PersistentFlags().Lookup("listen"))
+	if err != nil {
+		log.Sugar().Panicw("failed to bind flag", "flag", "listen", "error", err)
+	}
 }
 
 func initConfig() {

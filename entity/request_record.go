@@ -1,4 +1,4 @@
-package description
+package entity
 
 import (
 	"encoding/json"

@@ -1,11 +1,11 @@
-package description
+package entity
 
 import (
 	"net/http"
 	"time"
 )
 
-// a temporary cookie struct
+// TempCookie is a temporary cookie struct
 // deserialize from json
 type TempCookie struct {
 	Name   string `json:"name"`
