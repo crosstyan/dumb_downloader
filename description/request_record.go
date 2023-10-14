@@ -48,7 +48,7 @@ func (r *RequestRecord) UnmarshalJSON(data []byte) error {
 }
 
 type Description struct {
-	Images   []url.URL                `json:"images"`
+	Links    []url.URL                `json:"links"`
 	Requests map[string]RequestRecord `json:"requests"`
 }
 
@@ -69,7 +69,7 @@ func (d *Description) UnmarshalJSON(data []byte) error {
 		if err != nil {
 			return err
 		}
-		d.Images = append(d.Images, *u)
+		d.Links = append(d.Links, *u)
 	}
 
 	err = json.Unmarshal(raw["requests"], &d.Requests)

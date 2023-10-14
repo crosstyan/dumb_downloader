@@ -11,6 +11,7 @@ func Map[T, U any](ts []T, f func(T) U) []U {
 	return us
 }
 
+// Get the first value from a map that matches one of the keys.
 func TryGet[T any](m map[string]T, keys ...string) mo.Option[T] {
 	for _, k := range keys {
 		v, ok := m[k]
