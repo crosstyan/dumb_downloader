@@ -6,26 +6,9 @@ import (
 	"errors"
 	"github.com/crosstyan/dumb_downloader/entity"
 	"github.com/crosstyan/dumb_downloader/global/log"
-	"github.com/samber/mo"
 	"net/http"
 	"time"
 )
-
-type Resp = mo.Either[error, *entity.DownloadResponse]
-
-type ReqResp struct {
-	Request *entity.DownloadRequest
-	// if this channel exists then we use sync API
-	ResponseChannel *<-chan Resp
-	IsSync          bool
-	context         context.Context
-}
-
-// Context returns the context of the request.
-// it's only useful when the request is sync.
-func (rr *ReqResp) Context() context.Context {
-	return rr.context
-}
 
 func GetDownloadRequest(req *http.Request) (*entity.DownloadRequest, error) {
 	dlReq := entity.DownloadRequest{}
@@ -63,7 +46,7 @@ func writeError(resp http.ResponseWriter, err error, code int) {
 // @Failure 400 {object} entity.ErrorResponse
 // @Router /download [post]
 func MakeAsyncPushHandler(
-	reqChan chan<- ReqResp,
+	reqChan chan<- entity.ReqResp,
 	timeout time.Duration,
 ) http.HandlerFunc {
 	pushQueue := func(resp http.ResponseWriter, req *http.Request) {
@@ -80,7 +63,7 @@ func MakeAsyncPushHandler(
 			return
 		}
 		select {
-		case reqChan <- ReqResp{Request: dlReq, ResponseChannel: nil, context: ctx, IsSync: false}:
+		case reqChan <- entity.ReqResp{Request: dlReq, ResponseChannel: nil, Context: ctx, IsSync: false}:
 			resp.WriteHeader(http.StatusAccepted)
 			return
 		case <-ctx.Done():
@@ -102,7 +85,7 @@ func MakeAsyncPushHandler(
 // @Failure 400 {object} entity.ErrorResponse
 // @Router /download/sync [post]
 func MakeSyncPushHandler(
-	reqChan chan<- ReqResp,
+	reqChan chan<- entity.ReqResp,
 ) http.HandlerFunc {
 	pushQueue := func(resp http.ResponseWriter, req *http.Request) {
 		var ctx = req.Context()
@@ -111,10 +94,10 @@ func MakeSyncPushHandler(
 			writeError(resp, err, http.StatusBadRequest)
 			return
 		}
-		respChan := make(chan Resp)
-		oneWay := (<-chan Resp)(respChan)
+		respChan := make(chan entity.Resp)
+		oneWay := (<-chan entity.Resp)(respChan)
 		select {
-		case reqChan <- ReqResp{Request: dlReq, ResponseChannel: &oneWay, context: ctx, IsSync: true}:
+		case reqChan <- entity.ReqResp{Request: dlReq, ResponseChannel: &oneWay, Context: ctx, IsSync: true}:
 		case response := <-respChan:
 			{
 				err, r := response.Unpack()

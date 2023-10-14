@@ -11,8 +11,9 @@ go build
 
 ## TODO
 
-- [ ] a HTTP/WebSocket interface 
-- [ ] parallel download
+- [ ] an HTTP/WebSocket interface 
+- [x] parallel download
+- [ ] retry after failure and logging failure to a file
 
 ## See also
 

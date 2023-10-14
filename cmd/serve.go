@@ -44,6 +44,10 @@ func serveRun(cmd *cobra.Command, args []string) {
 	}
 }
 
+func tryDownload() {
+
+}
+
 var serve = cobra.Command{
 	Use:   "serve",
 	Short: "serve a dumb downloader server",
