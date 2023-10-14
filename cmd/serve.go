@@ -58,7 +58,8 @@ func serveRun(cmd *cobra.Command, args []string) {
 	})
 	swaggerH := httpSwagger.Handler(
 		// The url pointing to API definition
-		httpSwagger.URL("/swagger/swagger.json"),
+		// this is a magic path...
+		httpSwagger.URL("/swagger/doc.json"),
 	)
 	ch := make(chan entity.ReqResp, ChannelSize)
 	ctx := context.Background()
@@ -84,6 +85,10 @@ func serveRun(cmd *cobra.Command, args []string) {
 	}
 	r.Use(chiZapM, corsM)
 	one := time.Second
+	// dumb swagger handler
+	r.Get("/swagger", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/swagger/", http.StatusMovedPermanently)
+	})
 	r.Get("/swagger/*", swaggerH)
 	r.Post("/download/sync", api.MakeSyncPushHandler(ch))
 	r.Post("/download", api.MakeAsyncPushHandler(ch, one))
