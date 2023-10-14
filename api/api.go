@@ -150,16 +150,16 @@ func MakeSyncPushHandler(
 						return
 					}
 				} else {
+					for k, v := range r.Headers {
+						resp.Header().Add(k, v)
+					}
+					resp.WriteHeader(r.StatusCode)
 					_, err = resp.Write(r.Body)
 					if err != nil {
 						log.Sugar().Errorw("failed to write response", "error", err)
 						resp.WriteHeader(http.StatusInternalServerError)
 						return
 					}
-					for k, v := range r.Headers {
-						resp.Header().Add(k, v)
-					}
-					resp.WriteHeader(r.StatusCode)
 					return
 				}
 				return
