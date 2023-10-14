@@ -3,7 +3,9 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/crosstyan/dumb_downloader/entity"
+	"github.com/crosstyan/dumb_downloader/log"
 	"net/http"
 	"time"
 )
@@ -22,6 +24,17 @@ func GetDownloadRequest(req *http.Request) (*entity.DownloadRequest, error) {
 	return &dlReq, nil
 }
 
+func writeError(resp http.ResponseWriter, err error, code int) {
+	resp.WriteHeader(code)
+	eR := entity.ErrorResponse{Error: err}
+	b, _ := eR.MarshalJSON()
+	_, err = resp.Write(b)
+	if err != nil {
+		log.Sugar().Errorw("failed to write response", "error", err)
+		return
+	}
+}
+
 // MakeAsyncPushHandler creates a handler that pushes the request to the channel.
 func MakeAsyncPushHandler(
 	reqChan chan<- *entity.DownloadRequest,
@@ -32,7 +45,12 @@ func MakeAsyncPushHandler(
 		defer cancel()
 		dlReq, err := GetDownloadRequest(req)
 		if err != nil {
-			resp.WriteHeader(http.StatusBadRequest)
+			writeError(resp, err, http.StatusBadRequest)
+			return
+		}
+		// if save output is not set, it's meaningless to use async API
+		if !dlReq.IsSaveOutput {
+			writeError(resp, errors.New("async API only accepts save output"), http.StatusBadRequest)
 			return
 		}
 		select {
@@ -40,7 +58,7 @@ func MakeAsyncPushHandler(
 			resp.WriteHeader(http.StatusAccepted)
 			return
 		case <-ctx.Done():
-			resp.WriteHeader(http.StatusServiceUnavailable)
+			writeError(resp, errors.New("timeout"), http.StatusGatewayTimeout)
 			return
 		}
 	}

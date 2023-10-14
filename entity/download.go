@@ -23,6 +23,18 @@ type DownloadResponse struct {
 	Body []byte `json:"body"`
 }
 
+type ErrorResponse struct {
+	Error error `json:"error"`
+}
+
+func (e *ErrorResponse) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Error string `json:"error"`
+	}{
+		Error: e.Error.Error(),
+	})
+}
+
 // UnmarshalJSON
 //
 // @see https://gist.github.com/miguelmota/904f0fdad34eaac09c5d53098f960c5c
