@@ -10,6 +10,16 @@ import (
 	"github.com/spf13/viper"
 )
 
+var NotFound = errorx.CommonErrors.NewType("not_found", errorx.NotFound())
+
+func GetListenAddrFromViper() (string, error) {
+	listenAddr := viper.GetString("listen")
+	if listenAddr == "" {
+		return "", NotFound.New("no listen address")
+	}
+	return listenAddr, nil
+}
+
 func GetHttpProxyFromViper() (*url.URL, ProxyFunc, error) {
 	httpProxy := viper.GetString("http_proxy")
 	if httpProxy != "" {

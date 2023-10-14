@@ -17,8 +17,6 @@ import (
 	"golang.org/x/exp/maps"
 )
 
-var NotFound = errorx.CommonErrors.NewType("not_found", errorx.NotFound())
-
 type ProxyFunc = func(*http.Request) (*url.URL, error)
 
 func GetDescription(descriptionPath string) (*description.Description, error) {

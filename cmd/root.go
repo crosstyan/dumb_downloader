@@ -49,6 +49,6 @@ func initConfig() {
 		viper.SetConfigName("dumb.toml")
 	}
 	if err := viper.ReadInConfig(); err == nil {
-		log.Sugar().Infof("Using config file: %s", viper.ConfigFileUsed())
+		log.Sugar().Infow("using config file", "file", viper.ConfigFileUsed())
 	}
 }

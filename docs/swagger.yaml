@@ -1,0 +1,9 @@
+info:
+  contact: {}
+  license:
+    name: Do What the Fuck You Want to Public License
+    url: http://www.wtfpl.net/
+  title: Dumb Downloader API
+  version: "1.0"
+paths: {}
+swagger: "2.0"

@@ -1,0 +1,13 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "title": "Dumb Downloader API",
+        "contact": {},
+        "license": {
+            "name": "Do What the Fuck You Want to Public License",
+            "url": "http://www.wtfpl.net/"
+        },
+        "version": "1.0"
+    },
+    "paths": {}
+}
