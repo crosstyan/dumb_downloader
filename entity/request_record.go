@@ -14,36 +14,28 @@ type RequestRecord struct {
 }
 
 func (r *RequestRecord) UnmarshalJSON(data []byte) error {
-	var raw map[string]json.RawMessage
-	err := json.Unmarshal(data, &raw)
-	if err != nil {
+	type Alias RequestRecord
+	aux := &struct {
+		// this is the temporary field that json.Unmarshal know how to parse
+		Timestamp string       `json:"timestamp"`
+		Cookies   []TempCookie `json:"cookies"`
+		*Alias
+	}{
+		Alias: (*Alias)(r),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-
-	timeTemp := ""
-	err = json.Unmarshal(raw["timestamp"], &timeTemp)
-	if err != nil {
-		return err
-	}
-	t, err := time.Parse(time.RFC3339, timeTemp)
+	t, err := time.Parse(time.RFC3339, aux.Timestamp)
 	if err != nil {
 		return err
 	}
 	r.Timestamp = t
-
-	temp := make([]TempCookie, 0)
-	err = json.Unmarshal(raw["cookies"], &temp)
-	if err != nil {
-		return err
+	cookies := make([]http.Cookie, len(aux.Cookies))
+	for i, c := range aux.Cookies {
+		cookies[i] = c.ToNetCookie()
 	}
-	for _, v := range temp {
-		r.Cookies = append(r.Cookies, v.ToNetCookie())
-	}
-
-	err = json.Unmarshal(raw["headers"], &r.Headers)
-	if err != nil {
-		return err
-	}
+	r.Cookies = cookies
 	return nil
 }
 
@@ -53,28 +45,24 @@ type Description struct {
 }
 
 func (d *Description) UnmarshalJSON(data []byte) error {
-	var raw map[string]json.RawMessage
-	err := json.Unmarshal(data, &raw)
-	if err != nil {
+	type Alias Description
+	aux := &struct {
+		Links []string `json:"links"`
+		*Alias
+	}{
+		Alias: (*Alias)(d),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-
-	temp := make([]string, 0)
-	err = json.Unmarshal(raw["images"], &temp)
-	if err != nil {
-		return err
-	}
-	for _, v := range temp {
-		u, err := url.Parse(v)
+	links := make([]url.URL, len(aux.Links))
+	for i, l := range aux.Links {
+		u, err := url.Parse(l)
 		if err != nil {
 			return err
 		}
-		d.Links = append(d.Links, *u)
+		links[i] = *u
 	}
-
-	err = json.Unmarshal(raw["requests"], &d.Requests)
-	if err != nil {
-		return err
-	}
+	d.Links = links
 	return nil
 }
