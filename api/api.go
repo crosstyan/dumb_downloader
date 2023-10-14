@@ -101,7 +101,6 @@ func MakeSyncPushHandler(
 		query := req.URL.Query()
 		isTransparent := func() bool {
 			t := query.Get("transparent")
-			// log.Sugar().Debugw("query", "transparent", t)
 			b, err := strconv.ParseBool(t)
 			if err != nil {
 				return false

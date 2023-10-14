@@ -11,9 +11,19 @@ go build
 
 ## TODO
 
-- [ ] an HTTP/WebSocket interface 
+- [x] an HTTP interface 
+- [ ] a WebSocket interface
 - [x] parallel download
 - [ ] retry after failure and logging failure to a file
+- [ ] support for transmission resume and download management
+
+Not in the scope of this project:
+
+- GUI
+
+## HTTP API
+
+See [`swagger.yaml`](docs/swagger.yaml) or `swagger` router when using `dumbdl serve`.
 
 ## See also
 
