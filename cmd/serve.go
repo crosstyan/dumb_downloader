@@ -115,7 +115,7 @@ func tryDownload(ctx context.Context, reqChan <-chan entity.ReqResp, client *req
 				R.SetCookies(cookies...)
 				// don't break the impersonation
 				for k, v := range r.Headers {
-					R.Headers.Add(k, v)
+					R.SetHeader(k, v)
 				}
 				printHeadersCookies := func() {
 					headers := R.Headers
@@ -161,9 +161,13 @@ func tryDownload(ctx context.Context, reqChan <-chan entity.ReqResp, client *req
 				}
 				if chOk && reqResp.IsSync {
 					dlR := entity.DownloadResponse{}
-					for k, v := range resp.Header {
-						vv := strings.Join(v, ",")
-						dlR.Headers[k] = vv
+					header := make(map[string]string)
+					dlR.Headers = header
+					if resp.Header != nil {
+						for k, v := range resp.Header {
+							vv := strings.Join(v, ",")
+							dlR.Headers[k] = vv
+						}
 					}
 					ct, ok := utils.TryGet(dlR.Headers, "Content-Type", "content-type", "Content-type", "content-Type", "Content-TYPE").Get()
 					if ok {

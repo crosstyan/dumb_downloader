@@ -7,6 +7,7 @@ import (
 	"github.com/crosstyan/dumb_downloader/entity"
 	"github.com/crosstyan/dumb_downloader/global/log"
 	"github.com/samber/mo"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -14,8 +15,8 @@ import (
 
 func getDownloadRequest(req *http.Request) (*entity.DownloadRequest, error) {
 	dlReq := entity.DownloadRequest{}
-	buf := make([]byte, 1024)
-	_, err := req.Body.Read(buf)
+	buf, err := io.ReadAll(req.Body)
+	defer req.Body.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -56,6 +57,7 @@ func MakeAsyncPushHandler(
 		var ctx, cancel = context.WithTimeout(req.Context(), timeout)
 		defer cancel()
 		dlReq, err := getDownloadRequest(req)
+		log.Sugar().Infow("request", "url", dlReq.Url)
 		if err != nil {
 			writeError(resp, err, http.StatusBadRequest)
 			return
@@ -98,21 +100,24 @@ func MakeSyncPushHandler(
 		query := req.URL.Query()
 		isTransparent := func() bool {
 			t := query.Get("transparent")
+			// log.Sugar().Debugw("query", "transparent", t)
 			b, err := strconv.ParseBool(t)
-			if err == nil {
+			if err != nil {
 				return false
 			}
 			return b
 		}()
 		dlReq, err := getDownloadRequest(req)
 		if err != nil {
+			log.Sugar().Errorw("request", "error", err)
 			writeError(resp, err, http.StatusBadRequest)
 			return
 		}
+		log.Sugar().Infow("request", "url", dlReq.Url, "isTransparent", isTransparent)
 		respChan := make(chan entity.RespT)
+		reqChan <- entity.ReqResp{Request: dlReq,
+			ResponseChannel: mo.Some[entity.ResponseChannelV](respChan), Context: ctx, IsSync: true}
 		select {
-		case reqChan <- entity.ReqResp{Request: dlReq,
-			ResponseChannel: mo.Some[entity.ResponseChannelV](respChan), Context: ctx, IsSync: true}:
 		case response := <-respChan:
 			{
 				r, err := response.Get()
@@ -124,14 +129,16 @@ func MakeSyncPushHandler(
 					writeError(resp, errors.New("nil response"), http.StatusInternalServerError)
 					return
 				}
+				// https://pkg.go.dev/encoding/json#Marshal
+				// https://www.alexedwards.net/blog/json-surprises-and-gotchas
 				if !isTransparent {
 					b, err := json.Marshal(r)
 					if err != nil {
 						writeError(resp, err, http.StatusInternalServerError)
 						return
 					}
-					resp.WriteHeader(http.StatusOK)
 					_, err = resp.Write(b)
+					resp.WriteHeader(http.StatusOK)
 					if err != nil {
 						log.Sugar().Errorw("failed to write response", "error", err)
 						resp.WriteHeader(http.StatusInternalServerError)
