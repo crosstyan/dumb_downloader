@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/crosstyan/dumb_downloader/entity"
 	"github.com/crosstyan/dumb_downloader/global/log"
+	"github.com/samber/mo"
 	"net/http"
 	"strconv"
 	"time"
@@ -65,7 +66,8 @@ func MakeAsyncPushHandler(
 			return
 		}
 		select {
-		case reqChan <- entity.ReqResp{Request: dlReq, ResponseChannel: nil, Context: ctx, IsSync: false}:
+		case reqChan <- entity.ReqResp{Request: dlReq,
+			ResponseChannel: mo.None[entity.ResponseChannelV](), Context: ctx, IsSync: false}:
 			resp.WriteHeader(http.StatusAccepted)
 			return
 		case <-ctx.Done():
@@ -107,10 +109,10 @@ func MakeSyncPushHandler(
 			writeError(resp, err, http.StatusBadRequest)
 			return
 		}
-		respChan := make(chan entity.Resp)
-		oneWay := (chan<- entity.Resp)(respChan)
+		respChan := make(chan entity.RespT)
 		select {
-		case reqChan <- entity.ReqResp{Request: dlReq, ResponseChannel: &oneWay, Context: ctx, IsSync: true}:
+		case reqChan <- entity.ReqResp{Request: dlReq,
+			ResponseChannel: mo.Some[entity.ResponseChannelV](respChan), Context: ctx, IsSync: true}:
 		case response := <-respChan:
 			{
 				r, err := response.Get()

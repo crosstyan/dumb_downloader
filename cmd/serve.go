@@ -2,15 +2,18 @@ package cmd
 
 import (
 	"context"
+	"github.com/crosstyan/dumb_downloader/api"
 	"github.com/crosstyan/dumb_downloader/entity"
 	"github.com/crosstyan/dumb_downloader/global/log"
 	"github.com/crosstyan/dumb_downloader/utils"
 	"github.com/imroc/req/v3"
+	"github.com/panjf2000/ants/v2"
 	"github.com/samber/mo"
 	"net/http"
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
@@ -22,6 +25,8 @@ import (
 	_ "github.com/crosstyan/dumb_downloader/docs"
 )
 
+const ChannelSize = 128
+
 // @title Dumb Downloader API
 // @version 1.0
 // @license.name Do What the Fuck You Want to Public License
@@ -31,6 +36,17 @@ func serveRun(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Sugar().Panicw("failed to get listen address", "error", err)
 	}
+	log.Sugar().Infow("listen", "addr", listenAddr)
+	baseOutDir, err := GetOutDirFromViper()
+	if err != nil {
+		log.Sugar().Panicw("no valid output directory", "output_dir", baseOutDir)
+	}
+	log.Sugar().Infow("use base output directory", "output_dir", baseOutDir)
+	poolSize, err := GetPoolSizeFromViper()
+	if err != nil {
+		log.Sugar().Panicw("bad pool size", "pool_size", poolSize)
+	}
+	log.Sugar().Infow("use pool size", "pool_size", poolSize)
 	r := chi.NewRouter()
 	// middleware
 	chiZapM := chizap.New(log.Logger(), &chizap.Opts{})
@@ -44,8 +60,33 @@ func serveRun(cmd *cobra.Command, args []string) {
 		// The url pointing to API definition
 		httpSwagger.URL("/swagger/swagger.json"),
 	)
+	ch := make(chan entity.ReqResp, ChannelSize)
+	ctx := context.Background()
+	po, err := ants.NewPool(poolSize)
+	if err != nil {
+		log.Sugar().Panicw("failed to create pool", "error", err, "pool_size", poolSize)
+	}
+
+	client := req.C().ImpersonateChrome()
+	_, f, err := GetHttpProxyFromViper()
+	if err != nil {
+		log.Sugar().Errorw("failed to get proxy", "error", err)
+	} else {
+		client = client.SetProxy(f)
+	}
+	for i := range make([]struct{}, poolSize) {
+		err = po.Submit(func() {
+			tryDownload(ctx, ch, client, baseOutDir)
+		})
+		if err != nil {
+			log.Sugar().Panicw("failed to submit task", "error", err, "iteration", i)
+		}
+	}
 	r.Use(chiZapM, corsM)
+	one := time.Second
 	r.Get("/swagger/*", swaggerH)
+	r.Post("/download/sync", api.MakeSyncPushHandler(ch))
+	r.Post("/download", api.MakeAsyncPushHandler(ch, one))
 	err = http.ListenAndServe(listenAddr, r)
 	if err != nil {
 		log.Sugar().Panicw("listen", "err", err)
@@ -104,15 +145,16 @@ func tryDownload(ctx context.Context, reqChan <-chan entity.ReqResp, client *req
 						resp, err = result.Get()
 					}
 				}
+				reCh, chOk := reqResp.ResponseChannel.Get()
 				if err != nil {
-					if reqResp.ResponseChannel != nil && reqResp.IsSync {
-						*reqResp.ResponseChannel <- mo.Err[entity.RespIn](err)
+					if chOk && reqResp.IsSync {
+						reCh <- mo.Err[entity.RespV](err)
 					}
 					log.Sugar().Errorw("failed to download", "url", r.Url, "error", err)
 					printHeadersCookies()
 					continue
 				}
-				if reqResp.ResponseChannel != nil && reqResp.IsSync {
+				if chOk && reqResp.IsSync {
 					dlR := entity.DownloadResponse{}
 					for k, v := range resp.Header {
 						vv := strings.Join(v, ",")
@@ -126,15 +168,18 @@ func tryDownload(ctx context.Context, reqChan <-chan entity.ReqResp, client *req
 					dlR.Url = r.Url
 					dlR.Body = resp.Bytes()
 
-					*reqResp.ResponseChannel <- mo.Ok[entity.RespIn](&dlR)
+					reCh <- mo.Ok[entity.RespV](&dlR)
 				}
 				if r.OutPrefix == nil {
 					log.Sugar().Infow("proxy", "url", r.Url)
 					continue
 				}
+				isGoodStatusCode := func() bool {
+					return resp.StatusCode >= 200 && resp.StatusCode < 300
+				}()
 				// only save image type
-				if ct := resp.Header.Get("Content-Type"); strings.Contains(ct, "image") {
-					log.Sugar().Errorw("not a jpeg image", "url", r.Url, "Content-Type", ct)
+				if ct := resp.Header.Get("Content-Type"); strings.Contains(ct, "image") && isGoodStatusCode {
+					log.Sugar().Errorw("bad response", "url", r.Url, "Content-Type", ct, "status", resp.StatusCode)
 					log.Sugar().Debugw("response", "headers", resp.Header, "response", resp.String())
 					printHeadersCookies()
 					return
