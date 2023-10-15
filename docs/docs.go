@@ -72,7 +72,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "boolean",
-                        "description": "If the response is transparent. See also strconv.ParseBool",
+                        "description": "If the response is transparent. See also ` + "`" + `strconv.ParseBool` + "`" + `",
                         "name": "transparent",
                         "in": "query"
                     },
@@ -114,7 +114,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "cookies": {
-                    "description": "Array of cookies. See also entity.TempCookie.\n\nhttps://chromedevtools.github.io/devtools-protocol/tot/Network/#type-Cookie",
+                    "description": "Array of cookies. See also ` + "`" + `entity.TempCookie` + "`" + `.\n\nhttps://chromedevtools.github.io/devtools-protocol/tot/Network/#type-Cookie",
                     "type": "array",
                     "items": {
                         "type": "object"

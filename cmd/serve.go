@@ -88,7 +88,7 @@ func serveRun(cmd *cobra.Command, args []string) {
 	client := req.C().ImpersonateChrome()
 	_, f, err := GetHttpProxyFromViper()
 	if err != nil {
-		log.Sugar().Errorw("failed to get proxy", "error", err)
+		log.Sugar().Infow("no http proxy", "error", err.Error())
 	} else {
 		client = client.SetProxy(f)
 	}

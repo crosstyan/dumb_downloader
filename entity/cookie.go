@@ -12,15 +12,15 @@ import (
 type TempCookie struct {
 	Name   string `json:"name"`
 	Value  string `json:"value"`
-	Domain string `json:"domain"`
-	Path   string `json:"path"`
+	Domain string `json:"domain,omitempty"`
+	Path   string `json:"path,omitempty"`
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
-	Expires   float64 `json:"expires"`
-	Size      int     `json:"size"`
-	HttpOnly  bool    `json:"httpOnly"`
-	Secure    bool    `json:"secure"`
-	Session   bool    `json:"session"`
-	SameParty bool    `json:"sameParty"`
+	Expires   float64 `json:"expires,omitempty"`
+	Size      int     `json:"size,omitempty"`
+	HttpOnly  bool    `json:"httpOnly,omitempty"`
+	Secure    bool    `json:"secure,omitempty"`
+	Session   bool    `json:"session,omitempty"`
+	SameParty bool    `json:"sameParty,omitempty"`
 }
 
 func (t TempCookie) ToNetCookie() http.Cookie {

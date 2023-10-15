@@ -3,7 +3,7 @@ definitions:
     properties:
       cookies:
         description: |-
-          Array of cookies. See also entity.TempCookie.
+          Array of cookies. See also `entity.TempCookie`.
 
           https://chromedevtools.github.io/devtools-protocol/tot/Network/#type-Cookie
         items:
@@ -93,7 +93,7 @@ paths:
       - application/json
       description: Push a download request to the queue and wait for the response
       parameters:
-      - description: If the response is transparent. See also strconv.ParseBool
+      - description: If the response is transparent. See also `strconv.ParseBool`
         in: query
         name: transparent
         type: boolean

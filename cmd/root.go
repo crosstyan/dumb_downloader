@@ -83,5 +83,7 @@ func initConfig() {
 	}
 	if err := viper.ReadInConfig(); err == nil {
 		log.Sugar().Infow("using config file", "file", viper.ConfigFileUsed())
+	} else {
+		log.Sugar().Infof("Not using config file because %s", err.Error())
 	}
 }

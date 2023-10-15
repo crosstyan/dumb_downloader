@@ -9,7 +9,7 @@ import (
 
 type DownloadRequest struct {
 	Url string `json:"url" example:"https://example.com/"`
-	// Array of cookies. See also entity.TempCookie.
+	// Array of cookies. See also `entity.TempCookie`.
 	//
 	// https://chromedevtools.github.io/devtools-protocol/tot/Network/#type-Cookie
 	Cookies []http.Cookie `json:"cookies" swaggertype:"array,object"`

@@ -92,7 +92,7 @@ func MakeAsyncPushHandler(
 // @Tag download
 // @Accept json
 // @Produce json
-// @Param transparent query bool false "If the response is transparent. See also strconv.ParseBool"
+// @Param transparent query bool false "If the response is transparent. See also `strconv.ParseBool`"
 // @Param request body entity.DownloadRequest true "download request"
 // @Success 200 {object} entity.DownloadResponse
 // @Failure 400 {object} entity.ErrorResponse
