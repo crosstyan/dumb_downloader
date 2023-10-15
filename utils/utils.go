@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"github.com/crosstyan/dumb_downloader/global/log"
+	"github.com/imroc/req/v3"
 	"github.com/samber/mo"
 )
 
@@ -24,4 +26,11 @@ func TryGet[T any](m map[string]T, keys ...string) mo.Option[T] {
 		}
 	}
 	return mo.None[T]()
+}
+
+func PrintHeadersCookies(R *req.Request) {
+	headers := R.Headers
+	log.Sugar().Debugw("request headers", "headers", headers)
+	cs := R.Cookies
+	log.Sugar().Debugw("request cookies", "cookies", cs)
 }

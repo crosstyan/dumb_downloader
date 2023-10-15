@@ -14,10 +14,14 @@ import (
 	"time"
 )
 
+const JSON_MIME = "application/json"
+
 func getDownloadRequest(req *http.Request) (*entity.DownloadRequest, error) {
 	dlReq := entity.DownloadRequest{}
 	buf, err := io.ReadAll(req.Body)
-	defer req.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(req.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -28,11 +32,12 @@ func getDownloadRequest(req *http.Request) (*entity.DownloadRequest, error) {
 	return &dlReq, nil
 }
 
-func writeError(resp http.ResponseWriter, err error, code int) {
-	resp.WriteHeader(code)
+func writeErrorAsJson(resp http.ResponseWriter, err error, code int) {
+	resp.Header().Add("Content-Type", JSON_MIME)
 	eR := entity.ErrorResponse{Error: err.Error()}
 	b, _ := json.Marshal(eR)
 	_, err = resp.Write(b)
+	resp.WriteHeader(code)
 	if err != nil {
 		log.Sugar().Errorw("failed to write response", "error", err)
 		return
@@ -60,12 +65,12 @@ func MakeAsyncPushHandler(
 		dlReq, err := getDownloadRequest(req)
 		log.Sugar().Infow("request", "url", dlReq.Url)
 		if err != nil {
-			writeError(resp, err, http.StatusBadRequest)
+			writeErrorAsJson(resp, err, http.StatusBadRequest)
 			return
 		}
 		// if save output is not set, it's meaningless to use async API
 		if dlReq.OutPrefix == nil {
-			writeError(resp, errors.New("async API only accepts save output"), http.StatusBadRequest)
+			writeErrorAsJson(resp, errors.New("async API only accepts query with save output"), http.StatusBadRequest)
 			return
 		}
 		select {
@@ -74,7 +79,7 @@ func MakeAsyncPushHandler(
 			resp.WriteHeader(http.StatusAccepted)
 			return
 		case <-ctx.Done():
-			writeError(resp, errors.New("timeout"), http.StatusGatewayTimeout)
+			writeErrorAsJson(resp, errors.New("timeout"), http.StatusGatewayTimeout)
 			return
 		}
 	}
@@ -110,7 +115,7 @@ func MakeSyncPushHandler(
 		dlReq, err := getDownloadRequest(req)
 		if err != nil {
 			log.Sugar().Errorw("request", "error", err)
-			writeError(resp, err, http.StatusBadRequest)
+			writeErrorAsJson(resp, err, http.StatusBadRequest)
 			return
 		}
 		log.Sugar().Infow("request", "url", dlReq.Url, "isTransparent", isTransparent)
@@ -122,23 +127,23 @@ func MakeSyncPushHandler(
 			{
 				r, err := response.Get()
 				if err != nil {
-					writeError(resp, err, http.StatusInternalServerError)
+					writeErrorAsJson(resp, err, http.StatusInternalServerError)
 					return
 				}
 				if r == nil {
-					writeError(resp, errors.New("nil response"), http.StatusInternalServerError)
+					writeErrorAsJson(resp, errors.New("nil response"), http.StatusInternalServerError)
 					return
 				}
 				// https://pkg.go.dev/encoding/json#Marshal
 				// https://www.alexedwards.net/blog/json-surprises-and-gotchas
 				if !isTransparent {
-					resp.Header().Add("Content-Type", "application/json")
+					resp.Header().Add("Content-Type", JSON_MIME)
 					buf := bytes.NewBuffer([]byte{})
 					enc := json.NewEncoder(buf)
 					enc.SetEscapeHTML(false)
 					err = enc.Encode(r)
 					if err != nil {
-						writeError(resp, err, http.StatusInternalServerError)
+						writeErrorAsJson(resp, err, http.StatusInternalServerError)
 						return
 					}
 					_, err = resp.Write(buf.Bytes())
@@ -164,7 +169,7 @@ func MakeSyncPushHandler(
 				return
 			}
 		case <-ctx.Done():
-			writeError(resp, errors.New("timeout"), http.StatusGatewayTimeout)
+			writeErrorAsJson(resp, errors.New("timeout"), http.StatusGatewayTimeout)
 			return
 		}
 	}

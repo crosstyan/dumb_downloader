@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/crosstyan/dumb_downloader/entity"
@@ -97,57 +98,52 @@ func runDescription(cmd *cobra.Command, args []string) {
 	}
 	defer p.Release()
 	var wg sync.WaitGroup
-	for _, v := range d.Links {
+	for _, link := range d.Links {
 		wg.Add(1)
 		dlFn := func() {
 			// get the last part of the path
-			p := path.Base(v.Path)
+			p := path.Base(link.Path)
 			out := path.Join(outDir, p)
 			stat, err := os.Stat(out)
 			if !os.IsNotExist(err) {
 				if stat.IsDir() {
-					log.Sugar().Errorw("output file is a directory. skip.", "url", v.String(), "output", out)
+					log.Sugar().Errorw("output file is a directory. skip.", "url", link.String(), "output", out)
 					return
 				}
-				log.Sugar().Infow("output file already exists. skip.", "url", v.String(), "output", out)
+				log.Sugar().Infow("output file already exists. skip.", "url", link.String(), "output", out)
 				return
 			}
 			// convert to array of pointers...
 			cookies := utils.Map(c, func(c http.Cookie) *http.Cookie { return &c })
-			r := client.R().SetCookies(cookies...)
+			R := client.R().SetCookies(cookies...)
 			referer, ok := refererO.Get()
 			if ok {
-				r.SetHeader("Referer", referer)
+				R.SetHeader("Referer", referer)
 			}
-			r.SetHeader("Sec-Fetch-Dest", "image")
-			r.SetHeader("Sec-Fetch-Mode", "no-cors")
-			r.SetHeader("Sec-Fetch-Site", "same-site")
-			res, err := r.Get(v.String())
-			printHeadersCookies := func() {
-				log.Sugar().Debugw("request headers", "headers", res.Request.Headers)
-				cs := res.Request.Cookies
-				for _, c := range cs {
-					log.Sugar().Debugw("cookie", "name", c.Name, "value", c.Value)
-				}
-			}
+			R.SetHeader("Sec-Fetch-Dest", "image")
+			R.SetHeader("Sec-Fetch-Mode", "no-cors")
+			R.SetHeader("Sec-Fetch-Site", "same-site")
+			res, err := R.Get(link.String())
 			if err != nil {
-				log.Sugar().Errorw("failed to download image", "url", v.String(), "error", err)
-				printHeadersCookies()
+				log.Sugar().Errorw("failed to download image", "url", link.String(), "error", err)
+				utils.PrintHeadersCookies(R)
 				return
 			}
-			if res.Header.Get("Content-Type") != "image/jpeg" {
-				log.Sugar().Errorw("not a jpeg image", "url", v.String(), "content-type", res.Header.Get("Content-Type"))
+
+			// TODO: custom content type. For now I only need image
+			if ct := res.Header.Get("Content-Type"); !strings.Contains(ct, "image") {
+				log.Sugar().Errorw("not a image", "url", link.String(), "Content-Type", res.Header.Get("Content-Type"))
 				log.Sugar().Debugw("response", "headers", res.Header, "response", res.String())
-				printHeadersCookies()
+				utils.PrintHeadersCookies(R)
 				// TODO: retry and max Error to break
 				return
 			}
 			err = os.WriteFile(out, res.Bytes(), 0644)
 			if err != nil {
-				log.Sugar().Errorw("failed to save image", "url", v.String(), "error", err)
+				log.Sugar().Errorw("failed to save image", "url", link.String(), "error", err)
 				return
 			} else {
-				log.Sugar().Infow("downloaded", "url", v.String(), "output", out)
+				log.Sugar().Infow("downloaded", "url", link.String(), "output", out)
 			}
 		}
 		err = p.Submit(func() {

@@ -7,6 +7,7 @@ import (
 	"github.com/crosstyan/dumb_downloader/global/log"
 	"github.com/crosstyan/dumb_downloader/utils"
 	"github.com/imroc/req/v3"
+	"github.com/joomcode/errorx"
 	"github.com/panjf2000/ants/v2"
 	"github.com/samber/mo"
 	"net/http"
@@ -26,6 +27,22 @@ import (
 )
 
 const ChannelSize = 128
+
+func makeSubDirectory(baseOutDir string, sub string) (string, error) {
+	outDir := path.Join(baseOutDir, sub)
+	stat, err := os.Stat(outDir)
+	if !os.IsNotExist(err) {
+		if !stat.IsDir() {
+			return "", errorx.IllegalArgument.New("output directory %s is not a directory", outDir)
+		}
+	} else {
+		err = os.MkdirAll(outDir, 0755)
+		if err != nil {
+			return "", errorx.Decorate(err, "failed to create directory %s", outDir)
+		}
+	}
+	return outDir, nil
+}
 
 // @title Dumb Downloader API
 // @version 1.0
@@ -117,14 +134,6 @@ func tryDownload(ctx context.Context, reqChan <-chan entity.ReqResp, client *req
 				for k, v := range r.Headers {
 					R.SetHeader(k, v)
 				}
-				printHeadersCookies := func() {
-					headers := R.Headers
-					log.Sugar().Debugw("request headers", "headers", headers)
-					cs := R.Cookies
-					for _, c := range cs {
-						log.Sugar().Debugw("cookie", "name", c.Name, "value", c.Value)
-					}
-				}
 				var resp *req.Response
 				var err error
 				// if it's async we could just use this goroutine to get the response
@@ -132,19 +141,19 @@ func tryDownload(ctx context.Context, reqChan <-chan entity.ReqResp, client *req
 					resp, err = R.Get(r.Url)
 				} else {
 					// otherwise we have to poll the context
-					type ResultIn = *req.Response
-					c := make(chan mo.Result[ResultIn])
+					type ResponseV = *req.Response
+					c := make(chan mo.Result[ResponseV])
 					go func() {
 						resp, err := R.Get(r.Url)
 						if err != nil {
-							c <- mo.Err[ResultIn](err)
+							c <- mo.Err[ResponseV](err)
 							return
 						}
-						c <- mo.Ok[ResultIn](resp)
+						c <- mo.Ok[ResponseV](resp)
 					}()
 					select {
 					case <-ctx.Done():
-						log.Sugar().Warnw("context cancelled", "url", r.Url)
+						log.Sugar().Warnw("request context cancelled", "url", r.Url)
 						continue
 					case result := <-c:
 						resp, err = result.Get()
@@ -156,7 +165,7 @@ func tryDownload(ctx context.Context, reqChan <-chan entity.ReqResp, client *req
 						reCh <- mo.Err[entity.RespV](err)
 					}
 					log.Sugar().Errorw("failed to download", "url", r.Url, "error", err)
-					printHeadersCookies()
+					utils.PrintHeadersCookies(R)
 					continue
 				}
 				if chOk && reqResp.IsSync {
@@ -187,31 +196,25 @@ func tryDownload(ctx context.Context, reqChan <-chan entity.ReqResp, client *req
 					return resp.StatusCode >= 200 && resp.StatusCode < 300
 				}()
 				// only save image type
-				if ct := resp.Header.Get("Content-Type"); strings.Contains(ct, "image") && isGoodStatusCode {
+				ct := resp.Header.Get("Content-Type")
+				// TODO: custom content type
+				if !strings.Contains(ct, "image") || !isGoodStatusCode {
 					log.Sugar().Errorw("bad response", "url", r.Url, "Content-Type", ct, "status", resp.StatusCode)
+					utils.PrintHeadersCookies(R)
 					log.Sugar().Debugw("response", "headers", resp.Header, "response", resp.String())
-					printHeadersCookies()
 					return
 				}
-				outDir := path.Join(baseOutDir, *r.OutPrefix)
-				stat, err := os.Stat(outDir)
-				if !os.IsNotExist(err) {
-					if !stat.IsDir() {
-						log.Sugar().Errorw("invalid output directory",
-							"url", r.Url, "output", outDir, "prefix", *r.OutPrefix)
-						// fallback to base output directory
-						outDir = baseOutDir
-					}
+				var out string
+				prefix := *r.OutPrefix
+				if prefix == "" {
+					out = baseOutDir
 				} else {
-					log.Sugar().Warnw("create new output directory", "url", r.Url, "directory", outDir, "prefix", *r.OutPrefix)
-					err = os.MkdirAll(outDir, 0755)
+					out, err = makeSubDirectory(baseOutDir, *r.OutPrefix)
 					if err != nil {
-						log.Sugar().Errorw("failed to create output directory", "url", r.Url, "directory", outDir, "prefix", *r.OutPrefix, "error", err)
-						// fallback to base output directory
-						outDir = baseOutDir
+						log.Sugar().Errorw("failed to create sub directory", "error", err, "url", r.Url, "prefix", prefix, "fallback", baseOutDir)
+						out = baseOutDir
 					}
 				}
-				out := path.Join(outDir, path.Base(r.Url))
 				err = os.WriteFile(out, resp.Bytes(), 0644)
 				if err != nil {
 					log.Sugar().Errorw("failed to save", "url", r.Url, "output", out, "error", err)

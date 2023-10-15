@@ -6,7 +6,7 @@ Impersonate TLS fingerprint and akamai fingerprint. I need a reliable tool as th
 
 ```powershell
 go build
-./dumbdl.exe 2023-10-12-1-5-8.log.json -o out/15d
+./dumbdl.exe from 2023-10-12-1-5-8.log.json -o out/15d
 ```
 
 ## TODO
