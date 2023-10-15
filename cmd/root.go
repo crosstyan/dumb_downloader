@@ -31,6 +31,8 @@ func Execute() error {
 
 // https://github.com/spf13/viper/discussions/1054
 // https://github.com/spf13/cobra/blob/95d8a1e45d7719c56dc017e075d3e6099deba85d/command_test.go#L1645-L1652
+// https://www.developer.com/languages/inti-function-golang/
+// https://go.dev/doc/effective_go#init magic init function
 func init() {
 	cobra.OnInitialize(initConfig)
 	root.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file")
