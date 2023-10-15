@@ -45,7 +45,17 @@ func (r *DownloadResponse) MarshalJSON() ([]byte, error) {
 	if len(r.Body) == 0 {
 		return json.Marshal(aux)
 	}
-	if strings.Contains(r.MIMEType, "text") {
+	// https://github.com/edn-format/edn/issues/43
+	validContains := []string{"text", "json", "edn", "xml", "html", "svg", "css", "javascript", "ecmascript", "x-www-form-urlencoded"}
+	isText := func() bool {
+		for _, v := range validContains {
+			if strings.Contains(r.MIMEType, v) {
+				return true
+			}
+		}
+		return false
+	}()
+	if isText {
 		s := string(r.Body)
 		aux.Body = &s
 	} else {
